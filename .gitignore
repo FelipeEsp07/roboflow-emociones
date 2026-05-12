@@ -62,6 +62,13 @@ desktop.ini
 .ipynb_checkpoints/
 
 # =============================================
+# Configuración local de la UI
+# =============================================
+# El usuario guarda su configuración personal (API key, parámetros, etc.)
+# en este archivo. No debe versionarse.
+ui_config.json
+
+# =============================================
 # Archivos temporales del proyecto
 # =============================================
 _pdf_block.py

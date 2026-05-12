@@ -147,7 +147,26 @@ El modelo por defecto es `human-face-emotions/28`, público en Roboflow Universe
 
 ## Uso
 
-### Modo cámara (tiempo real)
+### 🖥️ Dashboard web (recomendado)
+
+Interfaz moderna en el navegador, accesible incluso desde otro dispositivo en la red local. Reemplaza la consola por una experiencia visual completa.
+
+```powershell
+python ui_app.py
+```
+
+Se abre automáticamente en `http://localhost:8080`. Pestañas disponibles:
+
+- **Cámara** — video en vivo, emoción dominante con emoji, distribución en tiempo real, contadores y controles (iniciar / pausar / detener / snapshot).
+- **Sesiones** — historial de sesiones pasadas con un click para abrir PDF / Markdown / gráfico / carpeta.
+- **Análisis** — vista detallada de una sesión seleccionada: KPIs, distribución, gráfico Gantt y galería de snapshots.
+- **Configuración** — API key, parámetros del modelo, metadatos del PDF y persistencia en `ui_config.json`.
+
+**Acceso desde otro dispositivo** (tablet, móvil) en la misma red: descubre la IP local con `ipconfig` y abre `http://TU_IP:8080`.
+
+### Modo CLI clásico
+
+Si prefieres la consola con ventana OpenCV:
 
 ```powershell
 python roboflow_emociones.py
@@ -341,15 +360,17 @@ PDF profesional generado con reportlab:
 
 ```
 roboflow-emociones/
-├─ roboflow_emociones.py          ← script principal (~2000 líneas, todo en un archivo)
+├─ roboflow_emociones.py          ← script CLI principal (~2000 líneas)
+├─ ui_app.py                      ← dashboard web NiceGUI (~1200 líneas)
 ├─ requirements.txt
 ├─ README.md
 ├─ LICENSE
 ├─ .gitignore
 ├─ assets/
 │  └─ logo_udec.png               ← logo institucional para la portada del PDF
-├─ sessions/                       ← (auto-generada) outputs por sesión
-└─ snapshots/                      ← (auto-generada) snapshots manuales con tecla 's'
+├─ ui_config.json                  ← (auto) configuración local del dashboard
+├─ sessions/                       ← (auto) outputs por sesión
+└─ snapshots/                      ← (auto) snapshots manuales con tecla 's'
 ```
 
 ---

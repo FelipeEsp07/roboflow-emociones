@@ -1,12 +1,23 @@
+# =============================================
 # Dependencias mínimas (obligatorias)
+# =============================================
 opencv-python>=4.8.0
 numpy>=1.24.0
 requests>=2.31.0
 
-# Dependencias opcionales pero recomendadas
-# - matplotlib: gráfico Gantt y de barras al cerrar la sesión
-# - reportlab:  generación del informe en PDF
-# - python-dotenv: carga ROBOFLOW_API_KEY desde archivo .env
+# =============================================
+# Dependencias para la versión CLI completa
+# =============================================
+# matplotlib: gráfico Gantt y de barras al cerrar la sesión
+# reportlab:  generación del informe en PDF
+# python-dotenv: carga ROBOFLOW_API_KEY desde archivo .env
 matplotlib>=3.7.0
 reportlab>=4.0.0
 python-dotenv>=1.0.0
+
+# =============================================
+# Dependencias para la interfaz web (ui_app.py)
+# =============================================
+# Solo necesarias si vas a usar el dashboard NiceGUI.
+# La versión CLI funciona sin esto.
+nicegui>=2.0.0
