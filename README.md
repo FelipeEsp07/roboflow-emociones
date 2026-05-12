@@ -348,8 +348,6 @@ roboflow-emociones/
 ├─ .gitignore
 ├─ assets/
 │  └─ logo_udec.png               ← logo institucional para la portada del PDF
-├─ notebooks/
-│  └─ Roboflow emociones.ipynb    ← notebook original de Colab (referencia histórica)
 ├─ sessions/                       ← (auto-generada) outputs por sesión
 └─ snapshots/                      ← (auto-generada) snapshots manuales con tecla 's'
 ```
