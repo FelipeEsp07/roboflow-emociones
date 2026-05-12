@@ -48,6 +48,7 @@ from roboflow_emociones import (
 
 from nicegui import app, ui
 from fastapi import Response
+from fastapi.responses import StreamingResponse
 
 try:
     from dotenv import load_dotenv  # type: ignore
@@ -221,13 +222,33 @@ def capture_loop() -> None:
     """Thread principal de captura + render. Corre mientras state.running."""
     cfg = state.config
     assert state.cap is not None and state.worker is not None
-    logger.info("Capture loop iniciado")
+
+    # Diagnóstico inicial de la cámara
+    actual_w = int(state.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    actual_h = int(state.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    actual_fps = state.cap.get(cv2.CAP_PROP_FPS) or 0.0
+    logger.info("Capture loop iniciado — cámara abierta a %dx%d, FPS reportado %.0f",
+                actual_w, actual_h, actual_fps)
+
+    frames_read = 0
+    frames_failed = 0
+    last_log = time.time()
 
     while state.running:
         ok, frame = state.cap.read()
         if not ok or frame is None:
+            frames_failed += 1
             time.sleep(0.03)
             continue
+        frames_read += 1
+
+        # Log periódico de actividad (cada 2 segundos)
+        now = time.time()
+        if now - last_log > 2.0:
+            logger.info("Capture: %d frames OK, %d fallidos en últimos %.1fs",
+                        frames_read, frames_failed, now - last_log)
+            frames_read = frames_failed = 0
+            last_log = now
         if cfg.get("mirror", True):
             frame = cv2.flip(frame, 1)
 
@@ -496,11 +517,46 @@ def open_in_explorer(path: Path) -> None:
 
 @app.get("/video_frame")
 async def video_frame_endpoint() -> Response:
-    """Devuelve el último JPEG del frame. Usado por <img> con polling."""
+    """Devuelve el último JPEG del frame (fallback sin streaming)."""
     with state.last_jpeg_lock:
         data = state.last_jpeg or EMPTY_JPEG_PLACEHOLDER
     return Response(content=data, media_type="image/jpeg",
                     headers={"Cache-Control": "no-store"})
+
+
+@app.get("/video_stream")
+async def video_stream_endpoint() -> StreamingResponse:
+    """
+    Stream MJPEG (multipart/x-mixed-replace). El navegador mantiene la
+    conexión abierta y renderiza cada frame conforme llega — sin flicker
+    ni recargas. Es el patrón estándar para video web.
+    """
+    boundary = b"--frame"
+
+    async def gen():
+        try:
+            while True:
+                with state.last_jpeg_lock:
+                    data = state.last_jpeg or EMPTY_JPEG_PLACEHOLDER
+                if data:
+                    yield (boundary + b"\r\n"
+                           b"Content-Type: image/jpeg\r\n"
+                           b"Content-Length: " + str(len(data)).encode()
+                           + b"\r\n\r\n" + data + b"\r\n")
+                # ~30 fps de envío. La captura suele ir más lenta, así
+                # que repetir el último frame mantiene la vista fluida.
+                await asyncio.sleep(0.033)
+        except asyncio.CancelledError:
+            return
+
+    return StreamingResponse(
+        gen(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 # Servir carpeta sessions/ como estática para mostrar imágenes y descargar PDFs
@@ -546,11 +602,17 @@ def build_live_tab() -> None:
 
         # ---- Columna izquierda: video y controles ----
         with ui.column().classes("flex-grow items-stretch gap-3"):
-            # Card del video
+            # Card del video — usa MJPEG streaming para evitar flicker.
+            # El <img> mantiene la conexión abierta con /video_stream y
+            # el navegador renderiza cada frame conforme llega.
             with ui.card().classes("w-full bg-black p-0 overflow-hidden") \
                     .style("border-radius: 12px;"):
-                video_img = ui.image("/video_frame").classes("w-full") \
-                    .props("no-spinner fit=contain")
+                ui.html(
+                    '<img id="cam-stream" src="/video_stream" '
+                    'style="width: 100%; height: auto; display: block; '
+                    'aspect-ratio: 16/9; object-fit: contain; '
+                    'background: #000;" alt="video">'
+                )
 
             # Controles
             with ui.row().classes("w-full justify-center gap-2 q-mt-sm"):
@@ -672,10 +734,6 @@ def build_live_tab() -> None:
 
     last_ts_cache = [0.0]
 
-    def refresh_video() -> None:
-        # Cache-busting para forzar al navegador a recargar la imagen
-        video_img.source = f"/video_frame?t={time.time():.3f}"
-
     def refresh_metrics() -> None:
         # Botón principal
         btn_start.visible = not state.running
@@ -764,8 +822,8 @@ def build_live_tab() -> None:
                         "text-caption").style("min-width: 50px; "
                                               "text-align: right;")
 
-    # NiceGUI 3: timers
-    ui.timer(0.07, refresh_video)
+    # Timer único: actualiza métricas. El video va por MJPEG streaming
+    # (no requiere timer, el navegador lo refresca solo).
     ui.timer(0.3, refresh_metrics)
 
 
