@@ -25,6 +25,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from pathlib import Path
 from typing import Optional
 
@@ -113,8 +114,15 @@ DEFAULT_CONFIG: dict = {
     "smooth_window": 7,
     "smooth_iou": 0.4,
     "tracking_enabled": True,
-    "track_iou": 0.3,
-    "track_max_missed": 15,
+    # IoU bajo (0.2) para tolerar que el modelo de Roboflow predice
+    # bboxes ligeramente distintos según la emoción ("happy" más ancho
+    # por la sonrisa, "neutral" más estrecho). Con 0.3 cada cambio
+    # de emoción saltaba la cara fuera del umbral y se creaba un ID
+    # nuevo, como si fuera otra persona.
+    "track_iou": 0.2,
+    # 40 frames ≈ 1.3 s a 30 fps. Da margen para una mala detección
+    # ocasional sin perder la identidad de la persona.
+    "track_max_missed": 40,
     "pdf_title": "Sistema de Análisis de Emociones Faciales en Tiempo Real",
     "pdf_authors": ("Cristian Camilo Posada García;"
                     "Luis Felipe Espinel Botina;"
@@ -202,6 +210,10 @@ class AppState:
         self.active_tracks: int = 0
         self.snapshots_taken: int = 0
         self.error_message: Optional[str] = None
+        # Buffer de frames recientes para que el snapshot represente
+        # el frame REAL que analizó el worker, no el frame actual (que
+        # puede ser 300-500 ms más nuevo y mostrar otra emoción).
+        self.frames_history: deque = deque(maxlen=60)
 
     def reset_metrics(self) -> None:
         self.last_detections = []
@@ -214,6 +226,7 @@ class AppState:
         self.active_tracks = 0
         self.snapshots_taken = 0
         self.error_message = None
+        self.frames_history.clear()
         with self.last_jpeg_lock:
             self.last_jpeg = EMPTY_JPEG_PLACEHOLDER
 
@@ -256,6 +269,10 @@ def capture_loop() -> None:
                         frames_read, frames_failed, now - last_log)
             frames_read = frames_failed = 0
             last_log = now
+
+        # Guardamos el timestamp del frame para reconciliar más adelante
+        # con el resultado de la inferencia, cuyo frame original ya pasó.
+        frame_ts = time.time()
         if cfg.get("mirror", True):
             frame = cv2.flip(frame, 1)
 
@@ -265,9 +282,13 @@ def capture_loop() -> None:
             state.running = False
             break
 
-        # Submit al worker (no bloquea, política latest-frame)
+        # Submit al worker (no bloquea, política latest-frame).
+        # Guardamos también el frame en el buffer para poder retroceder
+        # cuando llegue el resultado.
         if not state.paused:
-            state.worker.submit(frame.copy())
+            frame_copy = frame.copy()
+            state.frames_history.append((frame_ts, frame_copy))
+            state.worker.submit(frame_copy)
 
         result = state.worker.latest()
         if result is not None and result.received_at > state.last_seen_result_ts:
@@ -283,12 +304,27 @@ def capture_loop() -> None:
             state.last_detections = processed
             state.active_tracks = state.tracker.active_count() if state.tracker else 0
 
-            # Logging (frame limpio antes de dibujar)
+            # Logging (frame limpio antes de dibujar).
+            # Buscamos el frame del histórico que se enviado al worker
+            # cuando comenzó esta inferencia. Esto evita el problema de
+            # que el snapshot guardado para una emoción tenga la cara
+            # con OTRA emoción (la cara ya cambió 300-500 ms después).
             if state.session_logger:
+                # Tiempo aproximado del frame analizado:
+                # received_at - latency_s ≈ momento del envío al worker.
+                target_ts = result.received_at - result.latency_s
+                best_frame = None
+                best_diff = float("inf")
+                for fts, fframe in state.frames_history:
+                    diff = abs(fts - target_ts)
+                    if diff < best_diff:
+                        best_diff = diff
+                        best_frame = fframe
+                snapshot_frame = best_frame if best_frame is not None else frame
                 state.session_logger.log(
                     [d for d in processed
                      if d.confidence >= cfg.get("conf_threshold", 0.35)],
-                    frame=frame,
+                    frame=snapshot_frame,
                 )
                 state.snapshots_taken = len(state.session_logger._best_per_class)
 
