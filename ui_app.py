@@ -15,10 +15,12 @@ con la IP local del equipo.
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import logging
 import os
+import socket
 import subprocess
 import sys
 import threading
@@ -1242,12 +1244,64 @@ def shutdown_hook() -> None:
 app.on_shutdown(shutdown_hook)
 
 
+def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    """Devuelve True si ya hay un servidor escuchando en (host, port)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)
+            return s.connect_ex((host, port)) == 0
+    except OSError:
+        return False
+
+
+def _parse_ui_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Dashboard web para detección de emociones (NiceGUI).")
+    p.add_argument("--port", type=int, default=8080,
+                   help="Puerto donde escuchar (default: 8080).")
+    p.add_argument("--host", type=str, default="0.0.0.0",
+                   help="Host donde escuchar. '0.0.0.0' acepta conexiones "
+                        "desde la red local (default).")
+    p.add_argument("--no-browser", action="store_true",
+                   help="No abrir el navegador automáticamente al iniciar.")
+    return p.parse_args()
+
+
 if __name__ in {"__main__", "__mp_main__"}:
+    _args = _parse_ui_args()
+
+    # Diagnóstico previo al bind: si el puerto ya está ocupado, casi seguro
+    # quedó una instancia anterior corriendo en segundo plano. En vez de
+    # arrancar otra que falle silenciosamente, avisamos al usuario.
+    if is_port_in_use(_args.port):
+        print()
+        print("=" * 64)
+        print(f"  El puerto {_args.port} ya está en uso.")
+        print("=" * 64)
+        print()
+        print("  Probablemente hay otra instancia del dashboard")
+        print(f"  corriendo en http://localhost:{_args.port}")
+        print()
+        print("  Tres opciones para resolverlo:")
+        print()
+        print("    1) Cierra la instancia vieja:")
+        print("       taskkill /IM python.exe /F")
+        print()
+        print(f"    2) Abre la instancia que ya está corriendo:")
+        print(f"       http://localhost:{_args.port}")
+        print()
+        print("    3) Usa otro puerto:")
+        print(f"       python ui_app.py --port {_args.port + 1}")
+        print()
+        print("=" * 64)
+        sys.exit(1)
+
     ui.run(
         title="Análisis de Emociones · UdeC",
         favicon="🎭",
-        port=8080,
+        host=_args.host,
+        port=_args.port,
         reload=False,
-        show=True,  # abre el navegador automáticamente
-        dark=None,  # respeta el toggle de la UI
+        show=not _args.no_browser,
+        dark=None,
     )
