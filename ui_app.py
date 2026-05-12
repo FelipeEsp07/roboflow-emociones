@@ -610,20 +610,25 @@ def build_live_tab() -> None:
         # ---- Columna izquierda: video y controles ----
         with ui.column().classes("flex-grow items-stretch gap-3"):
             # Card del video — usa MJPEG streaming para evitar flicker.
-            # El <img> mantiene la conexión abierta con /video_stream y
-            # el navegador renderiza cada frame conforme llega.
-            # El wrapper centra la imagen vertical y horizontalmente,
-            # y la escala para llenar el ancho disponible respetando
-            # su aspect ratio nativo (4:3, 16:9, etc. — el servidor lo
-            # dicta).
-            with ui.card().classes("w-full p-0 overflow-hidden") \
-                    .style("border-radius: 12px; background: #0a0a0a;"):
+            # El wrapper tiene aspect-ratio fijo 4:3 (coincide con la
+            # webcam por defecto a 640x480). La imagen lo llena al
+            # 100% en ambas dimensiones y `object-fit: contain` se
+            # encarga de centrarla si la fuente real tiene otro ratio
+            # (ej. 16:9 dejaría una banda fina arriba/abajo, sin
+            # romper la composición ni dejar bandas desiguales).
+            with ui.card().classes("p-0 overflow-hidden") \
+                    .style(
+                        "border-radius: 12px; background: #0a0a0a; "
+                        "width: 100%; max-width: 1100px; "
+                        "margin-left: auto; margin-right: auto;"
+                    ):
                 ui.html(
-                    '<div style="width: 100%; display: flex; '
-                    'align-items: center; justify-content: center; '
-                    'min-height: 360px;">'
+                    '<div style="position: relative; width: 100%; '
+                    'aspect-ratio: 4/3; max-height: 78vh; '
+                    'background: #0a0a0a; overflow: hidden;">'
                     '<img id="cam-stream" src="/video_stream" '
-                    'style="width: 100%; height: auto; max-height: 78vh; '
+                    'style="position: absolute; inset: 0; '
+                    'width: 100%; height: 100%; '
                     'display: block; object-fit: contain;" alt="video">'
                     '</div>'
                 )
