@@ -1,0 +1,68 @@
+# =============================================
+# Python
+# =============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# =============================================
+# Credenciales y datos sensibles
+# =============================================
+.env
+.env.*
+*.env
+
+# =============================================
+# Salidas generadas por la app
+# =============================================
+# Outputs de sesiones (datos personales: imágenes faciales, registros).
+# El usuario puede comitear ejemplos específicos manualmente si lo desea,
+# pero por defecto se excluyen para preservar privacidad.
+sessions/
+snapshots/
+
+# =============================================
+# Backups locales del script
+# =============================================
+*.bak.py
+*.bak[0-9].py
+*.bak[0-9][0-9].py
+
+# =============================================
+# IDE / editores
+# =============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =============================================
+# Sistema operativo
+# =============================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =============================================
+# Jupyter
+# =============================================
+.ipynb_checkpoints/
+
+# =============================================
+# Archivos temporales del proyecto
+# =============================================
+_pdf_block.py
+_tests.py

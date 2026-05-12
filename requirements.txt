@@ -1,0 +1,12 @@
+# Dependencias mínimas (obligatorias)
+opencv-python>=4.8.0
+numpy>=1.24.0
+requests>=2.31.0
+
+# Dependencias opcionales pero recomendadas
+# - matplotlib: gráfico Gantt y de barras al cerrar la sesión
+# - reportlab:  generación del informe en PDF
+# - python-dotenv: carga ROBOFLOW_API_KEY desde archivo .env
+matplotlib>=3.7.0
+reportlab>=4.0.0
+python-dotenv>=1.0.0
