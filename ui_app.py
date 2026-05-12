@@ -609,29 +609,28 @@ def build_live_tab() -> None:
 
         # ---- Columna izquierda: video y controles ----
         with ui.column().classes("flex-grow items-stretch gap-3"):
-            # Card del video — usa MJPEG streaming para evitar flicker.
-            # El wrapper tiene aspect-ratio fijo 4:3 (coincide con la
-            # webcam por defecto a 640x480). La imagen lo llena al
-            # 100% en ambas dimensiones y `object-fit: contain` se
-            # encarga de centrarla si la fuente real tiene otro ratio
-            # (ej. 16:9 dejaría una banda fina arriba/abajo, sin
-            # romper la composición ni dejar bandas desiguales).
-            with ui.card().classes("p-0 overflow-hidden") \
-                    .style(
-                        "border-radius: 12px; background: #0a0a0a; "
-                        "width: 100%; max-width: 1100px; "
-                        "margin-left: auto; margin-right: auto;"
-                    ):
-                ui.html(
-                    '<div style="position: relative; width: 100%; '
-                    'aspect-ratio: 4/3; max-height: 78vh; '
-                    'background: #0a0a0a; overflow: hidden;">'
-                    '<img id="cam-stream" src="/video_stream" '
-                    'style="position: absolute; inset: 0; '
-                    'width: 100%; height: 100%; '
-                    'display: block; object-fit: contain;" alt="video">'
-                    '</div>'
-                )
+            # Contenedor del video — HTML directo, sin ui.card() porque
+            # Quasar mete estilos que rompían el aspect-ratio y dejaban
+            # el contenedor con altura 0. El wrapper exterior centra y
+            # limita el ancho; el interior fija aspect-ratio 4:3 y la
+            # imagen lo llena con object-fit: contain.
+            ui.html(
+                '<div style="'
+                'width: 100%; max-width: 1100px; '
+                'margin-left: auto; margin-right: auto; '
+                'background: #0a0a0a; border-radius: 12px; '
+                'overflow: hidden; '
+                'box-shadow: 0 2px 8px rgba(0,0,0,0.08);">'
+                '<div style="'
+                'position: relative; width: 100%; '
+                'aspect-ratio: 4/3; max-height: 78vh;">'
+                '<img id="cam-stream" src="/video_stream" '
+                'style="position: absolute; inset: 0; '
+                'width: 100%; height: 100%; '
+                'object-fit: contain; display: block;" alt="video">'
+                '</div>'
+                '</div>'
+            )
 
             # Controles
             with ui.row().classes("w-full justify-center gap-2 q-mt-sm"):
