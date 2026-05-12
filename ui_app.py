@@ -152,11 +152,16 @@ EMPTY_JPEG_PLACEHOLDER: bytes = b""
 
 
 def _make_placeholder() -> bytes:
-    img = np.zeros((360, 640, 3), dtype=np.uint8)
-    img[:] = (40, 40, 40)
-    cv2.putText(img, "Sin video — pulsa Iniciar",
-                (120, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
-                (200, 200, 200), 2, cv2.LINE_AA)
+    # 4:3 (640x480) para coincidir con la mayoría de webcams por defecto
+    # y evitar un "salto" visual cuando se inicia la captura real.
+    img = np.zeros((480, 640, 3), dtype=np.uint8)
+    img[:] = (15, 15, 15)
+    cv2.putText(img, "Sin video", (220, 220),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.1, (180, 180, 180), 2,
+                cv2.LINE_AA)
+    cv2.putText(img, "Pulsa 'Iniciar sesion' para comenzar",
+                (110, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                (140, 140, 140), 1, cv2.LINE_AA)
     ok, buf = cv2.imencode(".jpg", img)
     return buf.tobytes() if ok else b""
 
@@ -605,13 +610,20 @@ def build_live_tab() -> None:
             # Card del video — usa MJPEG streaming para evitar flicker.
             # El <img> mantiene la conexión abierta con /video_stream y
             # el navegador renderiza cada frame conforme llega.
-            with ui.card().classes("w-full bg-black p-0 overflow-hidden") \
-                    .style("border-radius: 12px;"):
+            # El wrapper centra la imagen vertical y horizontalmente,
+            # y la escala para llenar el ancho disponible respetando
+            # su aspect ratio nativo (4:3, 16:9, etc. — el servidor lo
+            # dicta).
+            with ui.card().classes("w-full p-0 overflow-hidden") \
+                    .style("border-radius: 12px; background: #0a0a0a;"):
                 ui.html(
+                    '<div style="width: 100%; display: flex; '
+                    'align-items: center; justify-content: center; '
+                    'min-height: 360px;">'
                     '<img id="cam-stream" src="/video_stream" '
-                    'style="width: 100%; height: auto; display: block; '
-                    'aspect-ratio: 16/9; object-fit: contain; '
-                    'background: #000;" alt="video">'
+                    'style="width: 100%; height: auto; max-height: 78vh; '
+                    'display: block; object-fit: contain;" alt="video">'
+                    '</div>'
                 )
 
             # Controles
